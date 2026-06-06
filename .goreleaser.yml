@@ -1,0 +1,112 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - make testshort
+
+builds:
+  - id: kubecolor
+    main: ./main.go
+    binary: kubecolor
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - arm64
+      - arm
+      - amd64
+      - "386"
+
+nfpms:
+  - id: kubecolor
+    vendor: kubecolor
+    homepage: https://kubecolor.github.io/
+    description: |
+      a kubectl wrapper used to add colors to your kubectl output
+    maintainer: Kalle Fagerberg <applejag-packages.gigabyte962@passmail.net>
+    formats:
+      - rpm
+      - deb
+    license: MIT
+
+    recommends:
+      - kubectl
+
+    rpm:
+      summary: Colorize your kubectl output
+
+    contents:
+      - src: "assets/packaging/usr/share/bash-completion/completions/kubecolor"
+        dst: "/usr/share/bash-completion/completions/kubecolor"
+      - src: "assets/packaging/usr/share/fish/vendor_completions.d/kubecolor.fish"
+        dst: "/usr/share/fish/vendor_completions.d/kubecolor.fish"
+      - src: "assets/packaging/usr/share/zsh/site-functions/_kubecolor"
+        dst: "/usr/share/zsh/site-functions/_kubecolor"
+
+      # (Only for .deb packages)
+      # Makes the .deb package self-install the apt repository
+      # https://github.com/cli/cli/pull/6857/files
+      - src: "assets/packaging/etc/apt/sources.list.d/kubecolor.sources"
+        dst: "/etc/apt/sources.list.d/kubecolor.sources"
+        type: config
+        packager: deb
+      - src: "assets/packaging/etc/apt/preferences.d/kubecolor.pref"
+        dst: "/etc/apt/preferences.d/kubecolor.pref"
+        type: config
+        packager: deb
+      - src: "assets/packaging/usr/share/keyrings/kubecolor-archive-keyring.gpg"
+        dst: "/usr/share/keyrings/kubecolor-archive-keyring.gpg"
+        packager: deb
+
+archives:
+  - ids:
+      - kubecolor
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+brews:
+  - name: kubecolor
+    repository:
+      owner: kubecolor
+      name: homebrew-tap
+      token: "{{ .Env.GLOBAL_GITHUB_TOKEN }}"
+    homepage: "https://github.com/kubecolor/kubecolor"
+    description: "Colorize your kubectl output"
+    license: "MIT"
+    directory: Formula
+    install: |
+      bin.install "kubecolor"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  # Our "release.yml" workflow triggers when a release is created,
+  # even as a draft, so that goreleaser can populate it later
+  # and finalize the release.
+  #
+  # This allows us to do some hotfixing of our release pipelines
+  # in case there were some bugs, as in the case of failure the
+  # GitHub release is never published and the Git tag is never pushed.
+  use_existing_draft: true
+
+  mode: keep-existing
